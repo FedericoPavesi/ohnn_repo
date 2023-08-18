@@ -1,0 +1,8 @@
+torch
+torchvision
+torchaudio
+tensorflow
+scikit-learn
+jupyter
+pandas
+seaborn
