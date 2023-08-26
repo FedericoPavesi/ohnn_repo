@@ -72,7 +72,10 @@ class modelTrainer:
 
 
     def train_model(self, train_data_loader, num_epochs, device, learning_rate, val_data_loader=None,
-                    store_weights_history=True, store_weights_grad=True):
+                    store_weights_history=True, store_weights_grad=True, display_log='batch'):
+
+        if display_log not in ['batch', 'epoch', 'quiet']:
+            raise ValueError('Options for display_log are "batch", "epoch" or "quiet"')
 
         if device != 'cpu':
             gc.collect()
@@ -82,14 +85,24 @@ class modelTrainer:
 
         min_loss = 1e5
 
-        for epoch in range(num_epochs):
+        # epoch log check
+        epoch_range = range(num_epochs)
+        if display_log == 'epoch':
+            epoch_range = tqdm(epoch_range)
+
+        for epoch in epoch_range:
             self.model.train()
 
             total_loss = 0
             correct = 0
             total = 0
 
-            for x_train, y_train in (train_iterations := tqdm(train_data_loader)):
+            # batch log check
+            train_iterations = train_data_loader
+            if display_log == 'batch':
+                train_iterations = tqdm(train_iterations)
+
+            for x_train, y_train in train_iterations:
 
                 self.model.to(device)
                 x_train.to(device)
@@ -122,7 +135,9 @@ class modelTrainer:
                                         zero_division = 0,
                                        labels = np.array([0, 1]))
 
-                train_iterations.set_description('batch_loss: {:.4f}, batch_accuracy: {:.4f}, f1 score 0: {:.4f}, f1 score 1: {:.4f}'.format(loss.item()/batch_total, batch_correct/batch_total, f1[0], f1[1]))
+                # batch log description
+                if display_log == 'batch':
+                    train_iterations.set_description('batch_loss: {:.4f}, batch_accuracy: {:.4f}, f1 score 0: {:.4f}, f1 score 1: {:.4f}'.format(loss.item()/batch_total, batch_correct/batch_total, f1[0], f1[1]))
 
             avg_loss = total_loss/total
             accuracy = correct/total
@@ -151,8 +166,11 @@ class modelTrainer:
                     save_model = self.model.clone()
                     self.best_configuration = [save_model.to('cpu').state_dict(), val_loss, epoch]
 
+            if display_log == 'epoch':
+                epoch_range.set_description('epoch_loss: {:.4f}, epoch_accuracy: {:.4f}'.format(avg_loss, accuracy))
 
-    def eval_model(self, val_data, device):
+
+    def eval_model(self, val_data, device='cpu'):
         if device != 'cpu':
             gc.collect()
             torch.cuda.empty_cache()
@@ -162,7 +180,7 @@ class modelTrainer:
 
         eval_loss = 0
         total_correct = 0
-        total = len(val_data)
+        total = 0
         f1_0 = 0
         f1_1 = 0
         num_iter = 0
@@ -170,6 +188,7 @@ class modelTrainer:
         with torch.no_grad():
             for val_x, val_y in tqdm(val_data):
 
+                total += len(val_y)
                 val_x.to(device)
                 val_y.to(device)
 
@@ -179,7 +198,7 @@ class modelTrainer:
 
                 loss = self.loss_fn(outputs, val_y)
 
-                eval_loss = loss.item()
+                eval_loss += loss.item()
 
                 batch_correct = (batch_pred == val_y).sum().item()
                 total_correct += batch_correct

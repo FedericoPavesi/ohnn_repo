@@ -15,7 +15,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-
 #%%
 
 
@@ -90,12 +89,13 @@ USE OHNN TO EXPLAIN PREDICTIONS
 ohnn_model = obj.oneHotRuleNN(input_size=13,
                               num_neurons=4,
                               num_rules=8,
-                              final_activation=nn.Sigmoid,
+                              final_activation=tof.Sign,
                               rule_weight_constraint=tof.getMax,
                               out_weight_constraint=tof.forcePositive,
                               dtype=torch.float32)
 
-loss_fn = nn.BCELoss(reduction='sum')
+#loss_fn = nn.KLDivLoss(reduction='sum')
+loss_fn = nn.SoftMarginLoss(reduction='sum')
 
 if torch.cuda.is_available():
     device = torch.device('cuda:0')
@@ -115,8 +115,9 @@ trainer.train_model(train_data_loader=pred_loader,
                     learning_rate=1e-5,
                     display_log='epoch')
 
-
 #%%
+
+
 fig1 = sns.lineplot(trainer.history['train_loss'])
 plt.show()
 
@@ -142,6 +143,7 @@ grafun.neuronHistoryPlot(trainer.observer_history, num_rule=0, num_neuron=0)
 
 linear_model = grafun.obtainLinearFormula(trainer)
 
+
 #%%
 
 """
@@ -153,12 +155,13 @@ USE OHNN TO PREDICT
 ohnn_model = obj.oneHotRuleNN(input_size=13,
                               num_neurons=4,
                               num_rules=8,
-                              final_activation=nn.Sigmoid,
+                              final_activation=tof.Sign,
                               rule_weight_constraint=tof.getMax,
                               out_weight_constraint=tof.forcePositive,
                               dtype=torch.float32)
 
-loss_fn = nn.BCELoss(reduction='sum')
+#loss_fn = nn.KLDivLoss(reduction='sum')
+loss_fn = nn.SoftMarginLoss(reduction='sum')
 
 if torch.cuda.is_available():
     device = torch.device('cuda:0')
@@ -201,12 +204,13 @@ grafun.ruleWeightHistoryPlot(trainer.observer_history['rule_weight'])
 
 #%%
 
-grafun.ruleHistoryPlot(trainer.observer_history, num_rule=2)
+grafun.ruleHistoryPlot(trainer.observer_history, num_rule=0)
 
 
 #%%
 
 grafun.neuronHistoryPlot(trainer.observer_history, num_rule=0, num_neuron=0)
+
 
 #%%
 
@@ -215,8 +219,7 @@ linear_model = grafun.obtainLinearFormula(trainer)
 #%%
 
 out_linear = torch.matmul(torch.tensor(x_test, dtype=torch.float32), linear_model.unsqueeze(-1))
-pred_linear = nn.Sigmoid()(out_linear).squeeze()
-pred_linear = torch.round(pred_linear)
+pred_linear = tof.Sign()(out_linear).squeeze()
 
 loss = loss_fn(pred_linear, torch.tensor(y_test, dtype=torch.float32))/len(pred_linear)
 
@@ -246,8 +249,3 @@ plt.ylabel("Value")
 plt.title("Tensor Columns as Lines")
 
 plt.show()
-
-
-
-
-

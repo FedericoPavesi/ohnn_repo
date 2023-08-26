@@ -80,6 +80,7 @@ class SignFunction(torch.autograd.Function):
     def forward(ctx, x):
         ctx.save_for_backward(x)
         new_x = torch.sign(x)
+        new_x = torch.clamp(new_x, min=0)
         return new_x
 
     @staticmethod
@@ -89,6 +90,34 @@ class SignFunction(torch.autograd.Function):
 class Sign(nn.Module):
     def forward(self, x):
         return SignFunction.apply(x)
+
+
+
+"""
+------------------------------------------------------------------------------------------
+NEG SIGN ACTIVATION FUNCTION
+
+This is a sign activation function which uses STE estimator
+during backpropagation
+"""
+
+class NegSignFunction(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x):
+        ctx.save_for_backward(x)
+        new_x = torch.sign(x)
+        new_x = torch.clamp(new_x, min=0)
+        new_x = (new_x * 2)
+        new_x -= 1
+        return new_x
+
+    @staticmethod
+    def backward(ctx, grad_outputs):
+        return grad_outputs, None
+
+class NegSign(nn.Module):
+    def forward(self, x):
+        return NegSignFunction.apply(x)
 
 
 """
